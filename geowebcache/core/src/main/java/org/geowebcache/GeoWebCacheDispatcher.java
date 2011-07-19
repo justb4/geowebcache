@@ -53,6 +53,7 @@ import org.geowebcache.service.Service;
 import org.geowebcache.stats.RuntimeStats;
 import org.geowebcache.storage.DefaultStorageFinder;
 import org.geowebcache.storage.StorageBroker;
+import org.geowebcache.util.GWCVars;
 import org.geowebcache.util.ServletUtils;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.AbstractController;
@@ -341,6 +342,12 @@ public class GeoWebCacheDispatcher extends AbstractController {
             // tile.requestURI = request.getRequestURI();
 
             try {
+				// https://github.com/justb4: Does this layer return only explicitly seeded tiles from cache
+				if (handleSeededTilesOnly(layer, convTile, response)) {
+					// No need to continue: blank tile or 404 has been returned to client
+					return;
+				}
+
                 // A5) Ask the layer to provide the content for the tile
                 convTile = layer.getTile(convTile);
 
@@ -353,6 +360,45 @@ public class GeoWebCacheDispatcher extends AbstractController {
             }
         }
     }
+
+	/**
+	 * Test if layer provides tiles through seeding only and if tile not present in cache.
+	 *
+	 * author: https://github.com/justb4
+	 *
+	 * @param layer	the target tile layer
+	 * @param convTile the conveyor tile
+	 * @param response the HTTP response object
+	 * @throws Exception  any exception
+	 * @return true if we return seeded tiles only and tile not in cache
+	 */
+	private boolean handleSeededTilesOnly(TileLayer layer, ConveyorTile convTile, HttpServletResponse response) throws Exception {
+		// If tile present in cache: no need to continue
+		if (storageBroker.get(convTile.getStorageObject())) {
+			return false;
+		}
+
+		// ASSERTION: tile does not exist in cache
+
+		// Determine further action from configured "expireCache" value
+		// for the tile's zoomlevel
+
+		int zoom = (int) convTile.getTileIndex()[2];
+		int expireCache = layer.getExpireCache(zoom);
+
+		// Test expiry value and actionfor tile zoom level
+		if (expireCache == GWCVars.CACHE_SEEDED_TILES_ONLY_BLANK) {
+			// Return blank tile
+			writeEmpty(convTile, "Returning cached tiles only");
+			return true;
+		} else if (expireCache == GWCVars.CACHE_SEEDED_TILES_ONLY_404) {
+			// Return 404: some clients may be configured to show a blank tile locally
+			writeError(response, 404, "Returning cached tiles only");
+			return true;
+		} else {
+			return false;
+		}
+	}
 
     private void handleDemoRequest(String action, HttpServletRequest request,
             HttpServletResponse response) throws GeoWebCacheException {

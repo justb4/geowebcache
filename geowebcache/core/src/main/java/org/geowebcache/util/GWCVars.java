@@ -22,6 +22,12 @@ public class GWCVars {
 
     public static final int CACHE_USE_WMS_BACKEND_VALUE = -4;
 
+	// https://github.com/justb4: added to allow caches that are created explicitly i.e. by seeding only
+	public static final int CACHE_SEEDED_TILES_ONLY_BLANK = -5;
+
+	// https://github.com/justb4: added to allow caches that are created explicitly i.e. by seeding only
+	public static final int CACHE_SEEDED_TILES_ONLY_404 = -6;
+
     public static String findEnvVar(ApplicationContext context, String varStr) {
         ServletContext serlvCtx = null;
         if (context instanceof WebApplicationContext) {
