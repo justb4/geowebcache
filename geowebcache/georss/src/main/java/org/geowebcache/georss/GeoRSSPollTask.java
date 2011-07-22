@@ -99,6 +99,11 @@ class GeoRSSPollTask implements Runnable {
          * to work?
          */
         try {
+			if (isSeeding()) {
+				logger.info("NOT Launching poll " + poll.getPollDef() + " for " + poll.getLayer().getName() + " (still seeding from previous poll)");
+				return;
+			}
+
             runPollAndLaunchSeed();
         } catch (Exception e) {
             logger.error("Error encountered trying to poll the GeoRSS feed "
@@ -300,6 +305,26 @@ class GeoRSSPollTask implements Runnable {
 
         }
     }
+
+	/**
+	 * Are there seeding tasks in progress from a previous poll ?
+	 *
+	 * Only checks on seeding tasks created from GeoRSS polling for this layer.
+	 *
+	 * @return true if there are seeding tasks in progress
+	 */
+	protected boolean isSeeding() {
+		boolean seeding = false;
+		if (this.seedTasks != null) {
+			for (GWCTask task : seedTasks) {
+				if (task.getState() != STATE.DEAD && task.getState() != STATE.DONE) {
+					seeding = true;
+					break;
+				}
+			}
+		}
+		return seeding;
+	}
 
     protected void stopSeeding(boolean checkLiveCount) {
         if (this.seedTasks != null) {
